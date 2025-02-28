@@ -11,6 +11,8 @@ import {
   deleteSessionChat,
 } from "../scripts/data.js"; // ou "./data.ts" si vous compilez en TS
 import type { ChatMessage, SessionChat } from "../scripts/data.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -96,20 +98,48 @@ const updateHandler: express.RequestHandler<
     // Mise à jour de la session avec le message de l'utilisateur
     await updateSessionChat(req.params.id, { chatHistory: updatedChatHistory });
 
-    // 2. Génération et ajout de la réponse de l'assistant
-    // Simuler un délai de 2 secondes
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    // Pour l'instant, la réponse est simplement le même message en majuscules.
-    const assistantMessage: ChatMessage = { role: "assistant", content: content.toUpperCase() };
-    console.log(`Génération de la réponse de l'assistant:`, assistantMessage);
-    
+    // 2. Prepare conversation context for the LLM call
+    // Choose the last 10 messages as context (you can adjust the number as needed)
+    const contextMessages = updatedChatHistory.slice(-10);
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      throw new Error("GROQ_API_KEY is not defined in environment variables");
+    }
+
+    const llmResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: contextMessages, // sending conversation context instead of just the last message
+        model: "llama-3.3-70b-versatile"
+      }),
+    });
+
+    if (!llmResponse.ok) {
+      const errorText = await llmResponse.text();
+      console.error("Erreur lors de l'appel à l'API LLM:", errorText);
+      throw new Error("Erreur lors de l'appel à l'API LLM");
+    }
+
+    const llmData = await llmResponse.json();
+    const assistantContent = llmData.choices && llmData.choices.length > 0
+      ? llmData.choices[0].message.content
+      : "Aucune réponse générée";
+    const assistantMessage: ChatMessage = { role: "assistant", content: assistantContent };
+    console.log("Génération de la réponse de l'assistant:", assistantMessage);
+
+    // Append the assistant's message
     updatedChatHistory = [...updatedChatHistory, assistantMessage];
 
-    // Mise à jour finale de la session avec la réponse de l'assistant
+    // Final update of the session with the full chat history
     const finalSession = await updateSessionChat(req.params.id, { chatHistory: updatedChatHistory });
     console.log(`Session finale mise à jour pour l'id ${req.params.id}:`, finalSession);
 
-    // Envoi de la session finale au client
+    // Send the final session to the client
     res.json(finalSession);
   } catch (error) {
     console.error("Erreur dans PUT /api/session-chats/:id :", error);
