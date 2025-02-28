@@ -61,6 +61,7 @@ app.post("/api/session-chats", async (req: Request, res: Response) => {
 interface UpdateMessageRequest {
   role: string;
   content: string;
+  model?: string
 }
 
 // --- Endpoint : PUT update session chat ---
@@ -75,7 +76,7 @@ const updateHandler: express.RequestHandler<
     req.body
   );
   try {
-    const { role, content } = req.body;
+    const { role, content, model } = req.body;
     if (!role || !content) {
       console.error("Payload invalide, rôle ou contenu manquant.");
       res.status(400).json({ error: "Le message doit contenir un rôle et un contenu" });
@@ -107,6 +108,9 @@ const updateHandler: express.RequestHandler<
       throw new Error("GROQ_API_KEY is not defined in environment variables");
     }
 
+    // Ensure model is always set (default to first model if undefined)
+    const selectedModel = model || "llama-3.3-70b-versatile";
+
     const llmResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -115,7 +119,7 @@ const updateHandler: express.RequestHandler<
       },
       body: JSON.stringify({
         messages: contextMessages, // sending conversation context instead of just the last message
-        model: "llama-3.3-70b-versatile"
+        model: selectedModel,
       }),
     });
 

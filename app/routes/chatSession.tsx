@@ -88,6 +88,12 @@ export async function action({ params, request }: Route.ActionArgs) {
   return data;
 }
 
+const models = [
+  "llama-3.3-70b-versatile",
+  "qwen-2.5-coder-32b",
+  "deepseek-r1-distill-qwen-32b",
+];
+
 /**
  * Composant qui affiche une session de chat
  */
@@ -104,6 +110,29 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fetcher = useFetcher();
   const [cancelled, setCancelled] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(models[0]); // Default model
+  const [isDropdownOpen, setDropdownOpen] = useState(false); // Controls dropdown visibility
+  const dropdownRef = useRef<HTMLDivElement>(null); // Reference to the dropdown
+  // Close dropdown if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setDropdownOpen(false);
+      }
+    };
+
+    // Add event listener when dropdown is open
+    if (isDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   useEffect(() => {
     if (fetcher.formData) {
@@ -152,23 +181,28 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
   return (
     <div className="h-screen w-full bg-white dark:bg-[#212121] flex flex-col text-dark dark:text-white">
       {/* Header */}
-      <div className="sticky top-0 p-3 mb-1.5 flex items-center justify-between z-10 h-14 font-semibold">
-        <div className="flex items-center gap-2">
+      <div className="sticky top-0 p-3 mb-1.5 flex items-center justify-between z-10 h-14 font-semibold ">
+        <div className="flex items-center gap-2" ref={dropdownRef}>
+          {/* Dropdown for model selection */}
           <button
-            aria-label="Sélecteur de modèle (le modèle actuel est 4o)"
+            aria-label="Sélecteur de modèle"
             type="button"
-            className="group flex cursor-pointer items-center gap-1 rounded-lg py-1.5 px-3 text-lg hover:[#303030] dark:hover:bg-[#303030] font-semibold text-[#b4b4b4]"
+            onClick={() => setDropdownOpen(!isDropdownOpen)}
+            className={`group flex cursor-pointer items-center gap-1 rounded-lg py-1.5 px-3 text-lg ${
+              isDropdownOpen ? "bg-[#303030]" : ""
+            } hover:bg-[#303030] dark:hover:bg-[#303030] font-semibold text-[#b4b4b4]`}
           >
-            <span className="">
-              ChatGPT <span className="text-token-text-secondary">4o</span>
-            </span>
+            <span>{selectedModel}</span>
             <svg
               width="24"
               height="24"
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              className="icon-md text-token-text-tertiary"
+              className="icon-md text-token-text-tertiary transition-transform duration-200"
+              // style={{
+              //   transform: isDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+              // }}
             >
               <path
                 fillRule="evenodd"
@@ -178,6 +212,27 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
               />
             </svg>
           </button>
+
+          {/* Dropdown Options */}
+          {isDropdownOpen && (
+            <div className="absolute p-3 top-12 mt-3 w-72 bg-white dark:bg-[#303030] border border-gray-300 dark:border-[#505050] rounded-lg shadow-md z-50">
+              <p className="text-sm text-[#b4b4b4] px-2 py-2">Modèle</p>
+              {models.map((model) => (
+                <button
+                  key={model}
+                  className={`w-full text-left px-2 py-2 rounded-lg hover:bg-[#505050] dark:hover:bg-[#505050] text-dark dark:text-white ${
+                    model === selectedModel ? "font-bold" : "font-light"
+                  }`}
+                  onClick={() => {
+                    setSelectedModel(model);
+                    setDropdownOpen(false);
+                  }}
+                >
+                  {model}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="gap-2 flex items-center pr-1">
           <button
@@ -280,6 +335,7 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
               {/* CustomChatForm for message submission */}
               <CustomChatForm
                 sessionId={sessionChat.id}
+                selectedModel={selectedModel}
                 onOptimisticUpdate={(message) =>
                   setLocalChatHistory((prev) => [...prev, message])
                 }

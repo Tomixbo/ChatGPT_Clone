@@ -15,12 +15,14 @@ interface SessionChat {
 
 interface CustomChatFormProps {
   sessionId: string;
+  selectedModel: string;
   onOptimisticUpdate: (message: ChatMessage) => void;
   onSuccess: (updatedSession: SessionChat) => void;
 }
 
 export function CustomChatForm({
   sessionId,
+  selectedModel,
   onOptimisticUpdate,
   onSuccess,
 }: CustomChatFormProps) {
@@ -49,7 +51,11 @@ export function CustomChatForm({
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    const messagePayload = { role: "user", content: trimmed };
+    const messagePayload = {
+      role: "user",
+      content: trimmed,
+      model: selectedModel,
+    };
 
     try {
       const response = await fetch(
