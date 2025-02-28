@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import type { Route } from "./+types/chatSession";
 import { useFetcher } from "react-router";
 import { CustomChatForm } from "../components/CustomChatForm";
+import ReactMarkdown from "react-markdown";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -216,7 +217,7 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
           {/* Dropdown Options */}
           {isDropdownOpen && (
             <div className="absolute p-3 top-12 mt-3 w-72 bg-white dark:bg-[#303030] border border-gray-300 dark:border-[#505050] rounded-lg shadow-md z-50">
-              <p className="text-sm text-[#b4b4b4] px-2 py-2">Modèle</p>
+              <p className="text-sm text-[#b4b4b4] px-2 py-1">Modèle</p>
               {models.map((model) => (
                 <button
                   key={model}
@@ -273,9 +274,9 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
                       <div className="m-auto text-base py-[18px] px-3 w-full md:px-5 lg:px-4 xl:px-5">
                         <div className="mx-auto flex flex-1 gap-4 text-base md:gap-5 lg:gap-6 md:max-w-3xl lg:max-w-[40rem] xl:max-w-[48rem]">
                           <div className="flex w-full flex-col gap-1 empty:hidden items-end rtl:items-start">
-                            <div className="relative max-w-[var(--user-chat-width,70%)] rounded-3xl bg-gray-600 dark:bg-[#303030] px-5 py-2.5  shadow-md">
-                              <div className="whitespace-pre-wrap break-words">
-                                {message.content}
+                            <div className="relative max-w-[var(--user-chat-width,70%)] text-[#e8e8e8] rounded-3xl bg-gray-600 dark:bg-[#303030] px-5 py-2.5  shadow-md break-words">
+                              <div className="markdown font-medium">
+                                <ReactMarkdown>{message.content}</ReactMarkdown>
                               </div>
                             </div>
                           </div>
@@ -305,11 +306,13 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
                                 <div
                                   data-message-author-role="assistant"
                                   dir="auto"
-                                  className="min-h-8 text-message flex w-full flex-col items-start gap-2 whitespace-normal break-words text-start"
+                                  className="min-h-8 text-base text-[#e8e8e8] flex w-full flex-col items-start gap-2 whitespace-normal break-words text-start"
                                 >
                                   <div className="relative max-w-[var(--assistant-chat-width,100%)] rounded-none px-0 py-0 ">
-                                    <div className="whitespace-pre-wrap">
-                                      {message.content}
+                                    <div className="markdown font-medium ">
+                                      <ReactMarkdown>
+                                        {message.content}
+                                      </ReactMarkdown>
                                     </div>
                                   </div>
                                 </div>
@@ -345,7 +348,7 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
               />
             </div>
           </div>
-          <div className="relative w-full px-2 py-2 text-center text-xs text-token-text-secondary empty:hidden md:px-[60px]">
+          <div className="relative w-full px-2 py-2 text-center text-xs text-[#e8e8e8] empty:hidden md:px-[60px]">
             <div className="min-h-4">
               <div>
                 L'IA peut faire des erreurs. Pensez à vérifier les informations

@@ -192,3 +192,16 @@ i {
   transition: opacity 200ms;
   transition-delay: 200ms;
 }
+
+
+
+.markdown ol {
+  list-style-type: decimal;
+  margin-left: 2rem;
+}
+
+.markdown li, p {
+  margin-bottom: 0.5rem;
+}
+
+

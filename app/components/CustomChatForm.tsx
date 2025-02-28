@@ -116,7 +116,7 @@ export function CustomChatForm({
               ref={textareaRef}
               placeholder="Envoyer un message à l'IA"
               name="content"
-              className="w-full overflow-y-auto resize-none outline-none bg-transparent text-white max-h-52 pt-2"
+              className="w-full overflow-y-auto resize-none outline-none bg-transparent text-[#e8e8e8] max-h-52 pt-2"
               onInput={(e) => {
                 const ta = e.currentTarget;
                 // Reset height for auto-resize
