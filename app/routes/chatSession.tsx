@@ -275,7 +275,7 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
                         <div className="mx-auto flex flex-1 gap-4 text-base md:gap-5 lg:gap-6 md:max-w-3xl lg:max-w-[40rem] xl:max-w-[48rem]">
                           <div className="flex w-full flex-col gap-1 empty:hidden items-end rtl:items-start">
                             <div className="relative max-w-[var(--user-chat-width,70%)] text-[#e8e8e8] rounded-3xl bg-gray-600 dark:bg-[#303030] px-5 py-2.5  shadow-md break-words">
-                              <div className="markdown font-medium">
+                              <div className="markdown font-normal">
                                 <ReactMarkdown>{message.content}</ReactMarkdown>
                               </div>
                             </div>
@@ -309,7 +309,7 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
                                   className="min-h-8 text-base text-[#e8e8e8] flex w-full flex-col items-start gap-2 whitespace-normal break-words text-start"
                                 >
                                   <div className="relative max-w-[var(--assistant-chat-width,100%)] rounded-none px-0 py-0 ">
-                                    <div className="markdown font-medium ">
+                                    <div className="markdown font-normal ">
                                       <ReactMarkdown>
                                         {message.content}
                                       </ReactMarkdown>
