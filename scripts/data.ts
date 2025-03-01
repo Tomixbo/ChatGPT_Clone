@@ -100,7 +100,7 @@ export async function createSessionChat(values: Partial<SessionChat>): Promise<S
  */
 export async function updateSessionChat(
   id: string,
-  updates: Partial<Pick<SessionChat, "chatHistory">>
+  updates: Partial<SessionChat>
 ): Promise<SessionChat> {
   invariant(db, "La base de données n'est pas initialisée. Appelez initDB() en premier.");
 
@@ -108,18 +108,29 @@ export async function updateSessionChat(
   const existing = await getSessionChat(id);
   if (!existing) throw new Error(`Aucune session trouvée pour l'id: ${id}`);
 
+  // Construire dynamiquement la requête en fonction des propriétés à mettre à jour
+  const fields: string[] = [];
+  const values: any[] = [];
+  if (updates.title !== undefined) {
+    fields.push("title = ?");
+    values.push(updates.title);
+  }
   if (updates.chatHistory !== undefined) {
-    console.log(`Mise à jour de la session ${id} dans la DB avec chatHistory:`, updates.chatHistory);
+    fields.push("chatHistory = ?");
+    values.push(JSON.stringify(updates.chatHistory));
+  }
+  if (fields.length > 0) {
     await db.run(
-      `UPDATE session_chats SET chatHistory = ? WHERE id = ?`,
-      JSON.stringify(updates.chatHistory),
+      `UPDATE session_chats SET ${fields.join(", ")} WHERE id = ?`,
+      ...values,
       id
     );
   }
 
-  // Retourne la session avec seulement le chatHistory mis à jour
-  return { ...existing, chatHistory: updates.chatHistory ?? existing.chatHistory };
+  // Retourner la session mise à jour (fusion des valeurs existantes et des mises à jour)
+  return { ...existing, ...updates, chatHistory: updates.chatHistory !== undefined ? updates.chatHistory : existing.chatHistory };
 }
+
 
 
 

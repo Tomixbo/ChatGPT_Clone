@@ -1,6 +1,14 @@
-import { Form, Link, Outlet, useNavigation } from "react-router";
+import {
+  Form,
+  Outlet,
+  useNavigation,
+  useParams,
+  useNavigate,
+} from "react-router";
+import React, { useState, useRef, useEffect } from "react";
 import { NavLink } from "react-router";
 import type { Route } from "./+types/sidebar";
+import OptionsMenu from "../components/OptionsMenu";
 
 /**
  * Définition du type SessionChat
@@ -24,7 +32,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     return { sessionChats };
   } catch (error) {
     console.error("Erreur dans le loader SidebarLayout :", error);
-    return { sessionChats: [] }; // Retourne une liste vide en cas d'échec
+    return { sessionChats: [] };
   }
 }
 
@@ -34,6 +42,75 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function SidebarLayout({ loaderData }: Route.ComponentProps) {
   const { sessionChats } = loaderData;
   const navigation = useNavigation();
+  const { sessionId: activeSessionId } = useParams<{ sessionId: string }>();
+
+  // Utilisez un effet pour mettre à jour les sessions lorsque fetcher.data est disponible
+  useEffect(() => {
+    if (sessionChats) {
+      setSessions(sessionChats);
+    }
+  }, [sessionChats]);
+
+  // Stocke la liste des sessions dans le state local
+  const [sessions, setSessions] = useState<SessionChat[]>(sessionChats);
+  // Identifiant de la session en cours d'édition
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  // Valeur saisie pour le nouveau titre
+  const [newTitle, setNewTitle] = useState("");
+
+  const updateSessionTitle = async (sessionChatId: string, title: string) => {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/session-chats/${sessionChatId}/title`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Erreur lors du renommage");
+      }
+      // Met à jour la liste locale
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionChatId ? { ...s, title } : s))
+      );
+    } catch (error) {
+      console.error("Erreur renommer la session:", error);
+    } finally {
+      setEditingSessionId(null);
+    }
+  };
+
+  // Lorsque l'utilisateur clique sur "Renommer"
+  const handleRenameClick = (sessionChatId: string, title: string) => {
+    setEditingSessionId(sessionChatId);
+    setNewTitle(title);
+  };
+
+  const navigate = useNavigate();
+
+  const handleDelete = async (sessionChatId: string) => {
+    if (!confirm("Voulez-vous vraiment supprimer cette session ?")) return;
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/session-chats/${sessionChatId}`,
+        {
+          method: "DELETE",
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Erreur lors de la suppression");
+      }
+      setSessions((prev) => prev.filter((s) => s.id !== sessionChatId));
+      console.log(activeSessionId);
+      if (sessionChatId === activeSessionId) {
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("Erreur suppression de la session:", error);
+    }
+  };
 
   return (
     <div className="flex h-full w-full bg-[#171717] font-medium">
@@ -137,61 +214,56 @@ export default function SidebarLayout({ loaderData }: Route.ComponentProps) {
           <div className="relative mt-5 first:mt-0 last:mb-5">
             <div className="sticky top-0 z-20">
               <span className="flex h-9 items-center">
-                <h3 className="px-2 text-xs font-semibold text-ellipsis overflow-hidden break-all pt-3 pb-2 ">
+                <h3 className="px-2 text-xs font-semibold overflow-hidden break-all pt-3 pb-2">
                   Aujourd’hui
                 </h3>
               </span>
             </div>
             <ol>
-              {sessionChats.length ? (
-                sessionChats.map((sessionChat, index) => (
-                  <li key={sessionChat.id}>
-                    <div className="no-draggable group rounded-lg active:opacity-90  h-9 text-sm relative hover:bg-[#303030]">
+              {sessions.length ? (
+                sessions.map((session) => (
+                  <li key={session.id} className="relative">
+                    <div className="group rounded-lg active:opacity-90 h-9 text-sm relative hover:bg-[#303030]">
                       <NavLink
-                        to={`/chatSession/${sessionChat.id}`}
+                        to={`/chatSession/${session.id}`}
                         className={({ isActive }) =>
                           isActive
                             ? "bg-[#303030] flex items-center gap-2 p-2 rounded-lg"
-                            : " flex items-center gap-2 p-2 rounded-lg"
+                            : "flex items-center gap-2 p-2 rounded-lg"
                         }
                       >
                         <div
                           className="relative grow overflow-hidden whitespace-nowrap"
-                          dir="auto"
-                          title={sessionChat.title}
+                          title={session.title}
                         >
-                          {sessionChat.title || <i>No Title</i>}
+                          {editingSessionId === session.id ? (
+                            <input
+                              type="text"
+                              value={newTitle}
+                              onChange={(e) => setNewTitle(e.target.value)}
+                              onBlur={() =>
+                                updateSessionTitle(session.id, newTitle)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  updateSessionTitle(session.id, newTitle);
+                                }
+                              }}
+                              className="bg-transparent text-white border-b border-white focus:outline-none w-full"
+                              autoFocus
+                            />
+                          ) : (
+                            session.title || <i>No Title</i>
+                          )}
                         </div>
                       </NavLink>
                       <div className="absolute inset-y-0 right-0 flex items-center gap-1.5 pr-2">
-                        <span data-state="closed">
-                          <button
-                            type="button"
-                            id={`radix-${index}`}
-                            data-testid={`history-item-${index}-options`}
-                            aria-label="Ouvrir des options de conversation"
-                            aria-haspopup="menu"
-                            aria-expanded="false"
-                            data-state="closed"
-                            className=" cursor-pointer flex items-center justify-center text-[#5e5e5e] transition hover:text-[#b4b4b4] "
-                          >
-                            <svg
-                              width="24"
-                              height="24"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="icon-md"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                clipRule="evenodd"
-                                d="M3 12C3 10.8954 3.89543 10 5 10C6.10457 10 7 10.8954 7 12C7 13.1046 6.10457 14 5 14C3.89543 14 3 13.1046 3 12ZM10 12C10 10.8954 10.8954 10 12 10C13.1046 10 14 10.8954 14 12C14 13.1046 13.1046 14 12 14C10.8954 14 10 13.1046 10 12ZM17 12C17 10.8954 17.8954 10 19 10C20.1046 10 21 10.8954 21 12C21 13.1046 20.1046 14 19 14C17.8954 14 17 13.1046 17 12Z"
-                                fill="currentColor"
-                              ></path>
-                            </svg>
-                          </button>
-                        </span>
+                        <OptionsMenu
+                          onRename={() =>
+                            handleRenameClick(session.id, session.title)
+                          }
+                          onDelete={() => handleDelete(session.id)}
+                        />
                       </div>
                     </div>
                   </li>

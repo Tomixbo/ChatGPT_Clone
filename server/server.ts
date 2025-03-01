@@ -175,3 +175,24 @@ initDB()
     console.error("Erreur lors de l'initialisation de la DB :", error);
     process.exit(1);
   });
+
+  // Endpoint PATCH pour mettre à jour le titre d'une session de chat
+app.patch("/api/session-chats/:id/title", async (req: Request, res: Response) => {
+  try {
+    const { title } = req.body;
+    if (!title) {
+      res.status(400).json({ error: "Le titre est requis" });
+      return;
+    }
+    const session: SessionChat | null = await getSessionChat(req.params.id);
+    if (!session) {
+      res.status(404).json({ error: "Session introuvable" });
+      return;
+    }
+    const updatedSession = await updateSessionChat(req.params.id, { title });
+    res.json(updatedSession);
+  } catch (error: any) {
+    console.error(`Erreur dans PATCH /api/session-chats/${req.params.id}/title:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
