@@ -200,8 +200,62 @@ i {
   margin-left: 2rem;
 }
 
+/* Retire la puce par défaut sur le UL principal et ajoute un léger retrait */
+.markdown ul {
+  list-style: none; 
+  margin-left: 2rem;
+  padding-left: 0;
+}
+
+/* Ajoute le tiret devant les <li> de premier niveau */
+.markdown ul > li {
+  position: relative;
+  display: block;
+  padding-left: 1.2em;
+}
+
+.markdown ul > li::before {
+  content: "- ";
+  position: absolute;
+  left: 0;
+  color: inherit;
+}
+
+/* Gère les <p> dans un <li> */
+.markdown ul > li > p {
+  display: block;
+  margin-bottom: 0.5em;
+}
+
+/* Les sous-listes utilisent des puces carrées par défaut */
+.markdown ul ul {
+  list-style: square;
+  margin-left: 1rem; 
+  padding-left: 1rem;
+}
+
+/* Pour que les puces carrées s'affichent bien, on remet chaque sous-<li> en mode "list-item" */
+.markdown ul ul li {
+  display: list-item;
+  position: static;
+  padding-left: 0;
+}
+
+/* Empêche l'affichage du tiret ("-") sur les sous-listes */
+.markdown ul ul li::before {
+  content: none;
+}
+
+
 .markdown li, p {
   margin-bottom: 0.5rem;
 }
+
+.markdown h3 {
+  font-weight: 600;
+  margin-bottom: .5rem;
+  margin-top: 1rem;
+}
+
 
 
