@@ -1,33 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 
-interface ChatMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
-
-interface SessionChat {
-  id: string;
-  title: string;
-  createdAt: string;
-  chatHistory: ChatMessage[];
-}
-
-interface CustomChatFormProps {
-  sessionId: string;
-  selectedModel: string;
-  onOptimisticUpdate: (message: ChatMessage) => void;
-  onSuccess: (updatedSession: SessionChat) => void;
-  autoPrompt?: string;
-}
-
-export function CustomChatForm({
-  sessionId,
-  selectedModel,
-  onOptimisticUpdate,
-  onSuccess,
-  autoPrompt,
-}: CustomChatFormProps) {
+export function CustomChatInit({ selectedModel }: { selectedModel: string }) {
   const [messageInput, setMessageInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -35,70 +9,38 @@ export function CustomChatForm({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
 
-  // If autoPrompt is provided, trigger submit on mount
-  useEffect(() => {
-    console.log("Auto Submit");
-    if (autoPrompt) {
-      setMessageInput(autoPrompt);
-      if (textareaRef.current) {
-        textareaRef.current.value = autoPrompt;
-        textareaRef.current.style.height = "auto";
-        textareaRef.current.style.height = `${
-          textareaRef.current.scrollHeight - 4
-        }px`;
-      }
-      // Delay a bit longer (e.g. 100ms) so that the UI updates before triggering submission
-      setTimeout(() => {
-        formRef.current?.requestSubmit();
-      }, 500);
-    }
-  }, [autoPrompt]);
+  // Auto-submit is not needed on home by default, but you can add similar logic if needed.
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = messageInput.trim();
     if (!trimmed) return; // Do not submit empty messages
 
-    // Optimistic update: push message to UI immediately
-    onOptimisticUpdate({ role: "user", content: trimmed });
-    // Clear the input immediately
-    setMessageInput("");
-    if (textareaRef.current) {
-      textareaRef.current.value = "";
-      textareaRef.current.style.height = "auto";
-    }
-
     setIsSubmitting(true);
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    const messagePayload = {
-      role: "user",
-      content: trimmed,
-      model: selectedModel,
-    };
-
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/session-chats/${sessionId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(messagePayload),
-          signal: controller.signal,
-        }
-      );
+      // Create a new session with the initial user message.
+      const response = await fetch("http://localhost:3000/api/session-chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Nouveau clavardage",
+        }),
+        signal: controller.signal,
+      });
 
       if (!response.ok) {
-        console.error(
-          `Erreur lors de l'envoi du message, statut ${response.status}`
-        );
-        throw new Error("Erreur lors de l'envoi du message");
+        throw new Error("Erreur lors de la création de la session");
       }
-
-      const data = await response.json();
-      console.log("Le serveur a répondu");
-      onSuccess(data);
+      const newSession = await response.json();
+      // Redirect to the new session page, passing autoPrompt and selectedModel in the URL.
+      navigate(
+        `/chatSession/${newSession.id}?autoPrompt=${encodeURIComponent(
+          trimmed
+        )}&selectedModel=${encodeURIComponent(selectedModel)}`
+      );
     } catch (error: any) {
       if (error.name === "AbortError") {
         console.log("La requête a été annulée");
@@ -120,10 +62,9 @@ export function CustomChatForm({
   return (
     <form
       ref={formRef}
-      id="message-form"
-      className="w-full"
       onSubmit={handleSubmit}
-      action={`/api/session-chats/${sessionId}`}
+      className="w-full"
+      action={`/api/session-chats`}
       method="post"
     >
       <div className="relative flex h-full max-w-full flex-1 flex-col">
@@ -140,13 +81,11 @@ export function CustomChatForm({
               className="w-full overflow-y-auto resize-none outline-none bg-transparent text-[#e8e8e8] max-h-52 pt-2"
               onInput={(e) => {
                 const ta = e.currentTarget;
-                // Reset height for auto-resize
                 ta.style.height = "auto";
                 ta.style.height = `${ta.scrollHeight - 4}px`;
                 setMessageInput(ta.value);
               }}
               onKeyDown={(e) => {
-                // If Enter is pressed without Shift, trigger submit
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   formRef.current?.requestSubmit();
@@ -156,7 +95,6 @@ export function CustomChatForm({
               data-virtualkeyboard="true"
             />
           </div>
-
           {/* Buttons Section */}
           <div className="mb-2 mt-1 flex items-center justify-end sm:mt-5">
             {isSubmitting ? (
@@ -221,7 +159,6 @@ export function CustomChatForm({
               </button>
             ) : (
               <button
-                data-testid="send-button"
                 type="submit"
                 aria-label="Envoyer la requête"
                 className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:opacity-70 focus-visible:outline-none focus-visible:outline-black disabled:text-[#f4f4f4] dark:focus-visible:outline-white bg-black text-white dark:bg-white dark:text-black disabled:bg-[#D7D7D7]"

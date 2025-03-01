@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import type { Route } from "./+types/chatSession";
-import { useFetcher } from "react-router";
+import { useFetcher, useSearchParams, useNavigate } from "react-router";
 import { CustomChatForm } from "../components/CustomChatForm";
 import ReactMarkdown from "react-markdown";
 import MarkdownRenderer from "../components/MarkdownRenderer";
@@ -112,9 +112,26 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fetcher = useFetcher();
   const [cancelled, setCancelled] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(models[0]); // Default model
+
   const [isDropdownOpen, setDropdownOpen] = useState(false); // Controls dropdown visibility
   const dropdownRef = useRef<HTMLDivElement>(null); // Reference to the dropdown
+
+  const [searchParams] = useSearchParams();
+  const autoPrompt = searchParams.get("autoPrompt") || undefined;
+
+  // Initialise selectedModel based on the query parameter or default model
+  const initialSelectedModel = searchParams.get("selectedModel") || models[0];
+  const [selectedModel, setSelectedModel] = useState(initialSelectedModel);
+
+  const navigate = useNavigate();
+
+  // If autoPrompt exists, clear the query parameters from the URL.
+  useEffect(() => {
+    if (autoPrompt) {
+      // Remove all query parameters from the URL
+      navigate(".", { replace: true });
+    }
+  }, [autoPrompt, navigate]);
 
   useEffect(() => {
     // Met à jour l’historique lorsque loaderData change (changement de session)
@@ -352,6 +369,7 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
                 onSuccess={(updatedSession: SessionChat) =>
                   setLocalChatHistory(updatedSession.chatHistory)
                 }
+                autoPrompt={autoPrompt}
               />
             </div>
           </div>

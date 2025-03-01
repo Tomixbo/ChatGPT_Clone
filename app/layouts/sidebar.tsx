@@ -103,7 +103,7 @@ export default function SidebarLayout({ loaderData }: Route.ComponentProps) {
         throw new Error("Erreur lors de la suppression");
       }
       setSessions((prev) => prev.filter((s) => s.id !== sessionChatId));
-      console.log(activeSessionId);
+
       if (sessionChatId === activeSessionId) {
         navigate("/");
       }
