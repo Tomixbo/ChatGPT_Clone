@@ -224,19 +224,13 @@ export default function SidebarLayout({ loaderData }: Route.ComponentProps) {
                 sessions.map((session) => (
                   <li key={session.id} className="relative">
                     <div className="group rounded-lg active:opacity-90 h-9 text-sm relative hover:bg-[#303030]">
-                      <NavLink
-                        to={`/chatSession/${session.id}`}
-                        className={({ isActive }) =>
-                          isActive
-                            ? "bg-[#303030] flex items-center gap-2 p-2 rounded-lg"
-                            : "flex items-center gap-2 p-2 rounded-lg"
-                        }
-                      >
-                        <div
-                          className="relative grow overflow-hidden whitespace-nowrap"
-                          title={session.title}
-                        >
-                          {editingSessionId === session.id ? (
+                      {editingSessionId === session.id ? (
+                        // Mode édition : pas de NavLink, donc clic non pris en charge
+                        <div className="flex items-center gap-2 p-2 rounded-lg">
+                          <div
+                            className="relative grow overflow-hidden whitespace-nowrap"
+                            title={session.title}
+                          >
                             <input
                               type="text"
                               value={newTitle}
@@ -252,11 +246,26 @@ export default function SidebarLayout({ loaderData }: Route.ComponentProps) {
                               className="bg-transparent text-white border-b border-white focus:outline-none w-full"
                               autoFocus
                             />
-                          ) : (
-                            session.title || <i>No Title</i>
-                          )}
+                          </div>
                         </div>
-                      </NavLink>
+                      ) : (
+                        // Mode normal : le NavLink est actif
+                        <NavLink
+                          to={`/chatSession/${session.id}`}
+                          className={({ isActive }) =>
+                            isActive
+                              ? "bg-[#303030] flex items-center gap-2 p-2 rounded-lg"
+                              : "flex items-center gap-2 p-2 rounded-lg"
+                          }
+                        >
+                          <div
+                            className="relative grow overflow-hidden whitespace-nowrap"
+                            title={session.title}
+                          >
+                            {session.title || <i>No Title</i>}
+                          </div>
+                        </NavLink>
+                      )}
                       <div className="absolute inset-y-0 right-0 flex items-center gap-1.5 pr-2">
                         <OptionsMenu
                           onRename={() =>

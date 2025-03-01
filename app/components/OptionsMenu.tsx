@@ -88,9 +88,9 @@ const OptionsMenu: React.FC<OptionsMenuProps> = ({ onRename, onDelete }) => {
               setOpen(false);
               if (onDelete) onDelete();
             }}
-            className="flex items-center m-1.5 p-2.5 text-sm cursor-pointer focus-visible:outline-0 radix-disabled:pointer-events-none radix-disabled:opacity-50 group relative hover:bg-[#606060] focus-visible:bg-[#606060] radix-state-open:bg-[#606060] dark:hover:bg-token-main-surface-secondary dark:focus-visible:bg-token-main-surface-secondary rounded-md my-0 px-3 mx-2 gap-2.5 py-3 text-token-text-error"
+            className="flex text-red-500 items-center m-1.5 p-2.5 text-sm cursor-pointer focus-visible:outline-0 radix-disabled:pointer-events-none radix-disabled:opacity-50 group relative hover:bg-[#606060] focus-visible:bg-[#606060] radix-state-open:bg-[#606060] dark:hover:bg-token-main-surface-secondary dark:focus-visible:bg-token-main-surface-secondary rounded-md my-0 px-3 mx-2 gap-2.5 py-3 text-token-text-error"
           >
-            <div className="flex items-center justify-center text-red-500 h-5 w-5">
+            <div className="flex items-center justify-center  h-5 w-5">
               <svg
                 width="24"
                 height="24"
