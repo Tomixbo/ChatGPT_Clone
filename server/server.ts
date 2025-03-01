@@ -1,6 +1,6 @@
 // server/server.ts
 import express from "express";
-import type { Request, Response, NextFunction  } from "express";
+import type { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import {
   initDB,
@@ -61,15 +61,14 @@ app.post("/api/session-chats", async (req: Request, res: Response) => {
 interface UpdateMessageRequest {
   role: string;
   content: string;
-  model?: string
+  model?: string;
 }
 
-// --- Endpoint : PUT update session chat ---
-// Handler PUT modifié
+// --- Endpoint : PUT update session chat avec streaming ---
 const updateHandler: express.RequestHandler<
-  { id: string },  // paramètres de route
-  any,             // type de la réponse
-  UpdateMessageRequest  // type du body de la requête
+  { id: string },      // paramètres de route
+  any,                 // type de la réponse
+  UpdateMessageRequest // type du body de la requête
 > = async (req, res, next: NextFunction) => {
   console.log(
     `Requête PUT reçue pour la session ${req.params.id} avec payload:`,
@@ -83,34 +82,27 @@ const updateHandler: express.RequestHandler<
       return;
     }
 
-    // Récupérer la session existante
+    // 1. Récupérer la session existante et ajouter le message de l'utilisateur
     const session: SessionChat | null = await getSessionChat(req.params.id);
     if (!session) {
       console.error(`Session introuvable pour l'id ${req.params.id}`);
       res.status(404).json({ error: "Session introuvable" });
       return;
     }
-
-    // 1. Ajout du message de l'utilisateur
     const userMessage: ChatMessage = { role, content };
     let updatedChatHistory = [...session.chatHistory, userMessage];
     console.log(`Ajout du message utilisateur dans la session ${req.params.id}:`, userMessage);
-    
-    // Mise à jour de la session avec le message de l'utilisateur
     await updateSessionChat(req.params.id, { chatHistory: updatedChatHistory });
 
-    // 2. Prepare conversation context for the LLM call
-    // Choose the last 10 messages as context (you can adjust the number as needed)
+    // 2. Préparer le contexte pour l'appel LLM : on envoie les 10 derniers messages
     const contextMessages = updatedChatHistory.slice(-10);
-
     const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
       throw new Error("GROQ_API_KEY is not defined in environment variables");
     }
-
-    // Ensure model is always set (default to first model if undefined)
     const selectedModel = model || "llama-3.3-70b-versatile";
 
+    // 3. Appel à l'API LLM avec streaming activé
     const llmResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -118,36 +110,82 @@ const updateHandler: express.RequestHandler<
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        messages: contextMessages, // sending conversation context instead of just the last message
+        messages: contextMessages,
         model: selectedModel,
+        stream: true, // Activation du mode streaming
       }),
     });
 
     if (!llmResponse.ok) {
       const errorText = await llmResponse.text();
       console.error("Erreur lors de l'appel à l'API LLM:", errorText);
-      throw new Error("Erreur lors de l'appel à l'API LLM");
+      res.status(500).json({ error: "Erreur lors de l'appel à l'API LLM" });
+      return;
     }
 
-    const llmData = await llmResponse.json();
-    const assistantContent = llmData.choices && llmData.choices.length > 0
-      ? llmData.choices[0].message.content
-      : "Aucune réponse générée";
+    if (!llmResponse.body) {
+      console.error("Le body de la réponse est nul");
+      res.status(500).json({ error: "Réponse invalide de l'API LLM" });
+      return;
+    }
+
+    // On configure le transfert en chunked (texte brut)
+    res.setHeader("Content-Type", "text/plain");
+
+    // 4. Lecture du flux + streaming vers le client
+    //    + parsing SSE pour construire assistantContent
+    const reader = llmResponse.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let done = false;
+    let assistantContent = "";
+    let buffer = "";
+
+    while (!done) {
+      const { value, done: doneReading } = await reader.read();
+      done = doneReading;
+      if (value) {
+        // Chunk reçu, on l'envoie immédiatement au client
+        const chunkStr = decoder.decode(value, { stream: true });
+        res.write(chunkStr); // Le client recevra la même structure SSE
+
+        // En parallèle, on parse en interne pour construire la réponse finale
+        buffer += chunkStr;
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) {
+            continue;
+          }
+          const jsonPart = trimmed.slice("data: ".length);
+          if (jsonPart === "[DONE]") {
+            console.log("Fin du streaming SSE");
+            continue;
+          }
+          try {
+            // On parse le JSON SSE style OpenAI
+            const parsed = JSON.parse(jsonPart);
+            const token = parsed?.choices?.[0]?.delta?.content;
+            if (token) {
+              assistantContent += token;
+            }
+          } catch (err) {
+            console.error("Erreur de parsing SSE chunk:", jsonPart, err);
+          }
+        }
+      }
+    }
+    res.end();
+
+    // 5. Mettre à jour la session avec le message final de l'assistant
     const assistantMessage: ChatMessage = { role: "assistant", content: assistantContent };
-    console.log("Génération de la réponse de l'assistant:", assistantMessage);
-
-    // Append the assistant's message
     updatedChatHistory = [...updatedChatHistory, assistantMessage];
+    console.log("Réponse finale de l'assistant:", assistantMessage.content);
 
-    // Final update of the session with the full chat history
-    const finalSession = await updateSessionChat(req.params.id, { chatHistory: updatedChatHistory });
-    console.log(`Session finale mise à jour pour l'id ${req.params.id}:`, finalSession);
-
-    // Send the final session to the client
-    res.json(finalSession);
-  } catch (error) {
+    await updateSessionChat(req.params.id, { chatHistory: updatedChatHistory });
+  } catch (error: any) {
     console.error("Erreur dans PUT /api/session-chats/:id :", error);
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -164,19 +202,7 @@ app.delete("/api/session-chats/:id", async (req: Request<{ id: string }>, res: R
   }
 });
 
-// Initialisation de la base de données puis démarrage du serveur
-initDB()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Serveur backend démarré sur http://localhost:${PORT}`);
-    });
-  })
-  .catch((error) => {
-    console.error("Erreur lors de l'initialisation de la DB :", error);
-    process.exit(1);
-  });
-
-  // Endpoint PATCH pour mettre à jour le titre d'une session de chat
+// Endpoint PATCH pour mettre à jour le titre d'une session de chat
 app.patch("/api/session-chats/:id/title", async (req: Request, res: Response) => {
   try {
     const { title } = req.body;
@@ -196,3 +222,15 @@ app.patch("/api/session-chats/:id/title", async (req: Request, res: Response) =>
     res.status(500).json({ error: error.message });
   }
 });
+
+// Initialisation de la base de données puis démarrage du serveur
+initDB()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Serveur backend démarré sur http://localhost:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Erreur lors de l'initialisation de la DB :", error);
+    process.exit(1);
+  });

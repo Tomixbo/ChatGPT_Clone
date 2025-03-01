@@ -1,43 +1,31 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 
-interface ChatMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
-
-interface SessionChat {
-  id: string;
-  title: string;
-  createdAt: string;
-  chatHistory: ChatMessage[];
-}
-
 interface CustomChatFormProps {
   sessionId: string;
   selectedModel: string;
-  onOptimisticUpdate: (message: ChatMessage) => void;
-  onSuccess: (updatedSession: SessionChat) => void;
+  // onSubmit reçoit le message de l'utilisateur et renvoie une Promise
+  onSubmit: (message: string) => Promise<void>;
+  // onCancel est appelé pour annuler le stream
+  onCancel: () => void;
   autoPrompt?: string;
 }
 
 export function CustomChatForm({
   sessionId,
   selectedModel,
-  onOptimisticUpdate,
-  onSuccess,
+  onSubmit,
+  onCancel,
   autoPrompt,
 }: CustomChatFormProps) {
   const [messageInput, setMessageInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
 
-  // If autoPrompt is provided, trigger submit on mount
+  // Si autoPrompt est fourni, déclenche l'envoi dès le montage
   useEffect(() => {
-    console.log("Auto Submit");
     if (autoPrompt) {
       setMessageInput(autoPrompt);
       if (textareaRef.current) {
@@ -47,21 +35,18 @@ export function CustomChatForm({
           textareaRef.current.scrollHeight - 4
         }px`;
       }
-      // Delay a bit longer (e.g. 100ms) so that the UI updates before triggering submission
       setTimeout(() => {
         formRef.current?.requestSubmit();
       }, 500);
     }
   }, [autoPrompt]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleLocalSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     const trimmed = messageInput.trim();
-    if (!trimmed) return; // Do not submit empty messages
+    if (!trimmed) return;
 
-    // Optimistic update: push message to UI immediately
-    onOptimisticUpdate({ role: "user", content: trimmed });
-    // Clear the input immediately
+    // 1. Effacer le texte immédiatement
     setMessageInput("");
     if (textareaRef.current) {
       textareaRef.current.value = "";
@@ -69,65 +54,26 @@ export function CustomChatForm({
     }
 
     setIsSubmitting(true);
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    const messagePayload = {
-      role: "user",
-      content: trimmed,
-      model: selectedModel,
-    };
-
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/session-chats/${sessionId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(messagePayload),
-          signal: controller.signal,
-        }
-      );
-
-      if (!response.ok) {
-        console.error(
-          `Erreur lors de l'envoi du message, statut ${response.status}`
-        );
-        throw new Error("Erreur lors de l'envoi du message");
-      }
-
-      const data = await response.json();
-      console.log("Le serveur a répondu");
-      onSuccess(data);
-    } catch (error: any) {
-      if (error.name === "AbortError") {
-        console.log("La requête a été annulée");
-      } else {
-        console.error(error);
-      }
+      // 2. On appelle la logique d'envoi (onSubmit) qui va gérer le streaming
+      await onSubmit(trimmed);
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsSubmitting(false);
-      abortControllerRef.current = null;
-    }
-  };
-
-  const handleCancel = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
     }
   };
 
   return (
     <form
       ref={formRef}
-      id="message-form"
+      onSubmit={handleLocalSubmit}
       className="w-full"
-      onSubmit={handleSubmit}
       action={`/api/session-chats/${sessionId}`}
       method="post"
     >
       <div className="relative flex h-full max-w-full flex-1 flex-col">
-        {/* Composer Background */}
+        {/* Zone de composition */}
         <div
           id="composer-background"
           className="flex w-full cursor-text flex-col rounded-3xl border border-token-border-light px-3 py-1 shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),_0_2px_5px_0px_rgba(0,0,0,0.06)] contain-inline-size dark:border-none dark:shadow-none bg-main-surface-primary dark:bg-[#303030]"
@@ -140,13 +86,11 @@ export function CustomChatForm({
               className="w-full overflow-y-auto resize-none outline-none bg-transparent text-[#e8e8e8] max-h-52 pt-2"
               onInput={(e) => {
                 const ta = e.currentTarget;
-                // Reset height for auto-resize
                 ta.style.height = "auto";
                 ta.style.height = `${ta.scrollHeight - 4}px`;
                 setMessageInput(ta.value);
               }}
               onKeyDown={(e) => {
-                // If Enter is pressed without Shift, trigger submit
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   formRef.current?.requestSubmit();
@@ -156,19 +100,18 @@ export function CustomChatForm({
               data-virtualkeyboard="true"
             />
           </div>
-
-          {/* Buttons Section */}
+          {/* Boutons d'action */}
           <div className="mb-2 mt-1 flex items-center justify-end sm:mt-5">
             {isSubmitting ? (
               <button
                 type="button"
                 aria-label="Arrêter la diffusion"
-                className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:opacity-70 focus-visible:outline-none focus-visible:outline-black disabled:text-[#f4f4f4] disabled:hover:opacity-100 dark:focus-visible:outline-white disabled:dark:bg-white dark:disabled:text-[#f4f4f4] bg-blue-1000 text-white dark:bg-white dark:text-black disabled:bg-[#D7D7D7]"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleCancel();
+                  onCancel();
                 }}
+                className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:opacity-70 focus-visible:outline-none focus-visible:outline-black disabled:text-[#f4f4f4] disabled:hover:opacity-100 dark:focus-visible:outline-white disabled:dark:bg-white dark:disabled:text-[#f4f4f4] bg-blue-1000 text-white dark:bg-white dark:text-black disabled:bg-[#D7D7D7]"
               >
                 <svg
                   width="24"
