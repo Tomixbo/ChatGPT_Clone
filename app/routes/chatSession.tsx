@@ -278,10 +278,10 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
       {/* Section des messages */}
-      <div className="flex-1 overflow-hidden @container/thread">
+      <div className="flex-1 overflow-hidden ">
         <div className="h-full">
           <div
-            className="h-full overflow-auto"
+            className="h-full overflow-auto messages-container ml-4"
             style={{ scrollBehavior: "smooth" }}
             ref={messagesContainerRef}
           >
@@ -300,7 +300,7 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
                           <div className="flex w-full flex-col gap-1 empty:hidden items-end rtl:items-start">
                             <div className="relative max-w-[var(--user-chat-width,70%)] text-[#e8e8e8] rounded-3xl bg-gray-600 dark:bg-[#303030] px-5 py-2.5  shadow-md break-words">
                               <div className="markdown font-normal">
-                                <ReactMarkdown>{message.content}</ReactMarkdown>
+                                {message.content}
                               </div>
                             </div>
                           </div>

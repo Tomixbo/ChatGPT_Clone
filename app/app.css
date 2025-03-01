@@ -257,5 +257,8 @@ i {
   margin-top: 1rem;
 }
 
+.messages-container {
+  scrollbar-gutter: stable;
+}
 
 
