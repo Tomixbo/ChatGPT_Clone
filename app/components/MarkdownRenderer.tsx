@@ -104,13 +104,13 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
 const ThinkBlock: React.FC<{ content: string }> = ({ content }) => {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mb-4">
+    <div className="mb-4 ">
       <button
-        className="relative inline w-full text-start"
+        className="relative inline w-full text-start "
         onClick={() => setOpen(!open)}
       >
         <span
-          className="align-middle text-token-text-primary"
+          className="align-middle text-[#e8e8e8] cursor-pointer"
           style={{ opacity: 1, willChange: "auto" }}
         >
           Raisonnement
@@ -121,7 +121,7 @@ const ThinkBlock: React.FC<{ content: string }> = ({ content }) => {
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className={`icon-sm inline align-middle text-[#e8e8e8] transition-transform ${
+          className={`cursor-pointer icon-sm inline align-middle text-[#e8e8e8] transition-transform ${
             open ? "rotate-90" : ""
           }`}
         >
