@@ -3,6 +3,7 @@ import type { Route } from "./+types/chatSession";
 import { useFetcher } from "react-router";
 import { CustomChatForm } from "../components/CustomChatForm";
 import ReactMarkdown from "react-markdown";
+import MarkdownRenderer from "../components/MarkdownRenderer";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -316,9 +317,9 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
                                 >
                                   <div className="relative max-w-[var(--assistant-chat-width,100%)] rounded-none px-0 py-0 ">
                                     <div className="markdown font-normal ">
-                                      <ReactMarkdown>
-                                        {message.content}
-                                      </ReactMarkdown>
+                                      <MarkdownRenderer
+                                        content={message.content}
+                                      />
                                     </div>
                                   </div>
                                 </div>
