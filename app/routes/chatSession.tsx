@@ -114,6 +114,12 @@ export default function ChatSession({ loaderData }: Route.ComponentProps) {
   const [selectedModel, setSelectedModel] = useState(models[0]); // Default model
   const [isDropdownOpen, setDropdownOpen] = useState(false); // Controls dropdown visibility
   const dropdownRef = useRef<HTMLDivElement>(null); // Reference to the dropdown
+
+  useEffect(() => {
+    // Met à jour l’historique lorsque loaderData change (changement de session)
+    setLocalChatHistory(sessionChat.chatHistory);
+  }, [sessionChat.chatHistory]);
+
   // Close dropdown if clicked outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

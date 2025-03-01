@@ -5,10 +5,29 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  redirect,
 } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+
+export async function action() {
+  // Envoyer une requête POST vers votre API pour créer une nouvelle session de chat.
+  const response = await fetch("http://localhost:3000/api/session-chats", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "Nouveau clavardage" }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Erreur lors de la création d'une nouvelle session");
+  }
+
+  const newSession = await response.json();
+
+  // Rediriger vers l'URL de la nouvelle session
+  return redirect(`/chatSession/${newSession.id}`);
+}
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
